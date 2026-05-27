@@ -28,3 +28,46 @@ test('getById returns null for missing id', () => {
   const p = newProvider();
   assert.equal(p.getById(999), null);
 });
+
+test('search matches game_id case-insensitively, partial', () => {
+  const p = newProvider();
+  p.addPlayer({ game_id: 'GhostSniper' });
+  p.addPlayer({ game_id: 'RushBoy' });
+  const results = p.search('ghost');
+  assert.equal(results.length, 1);
+  assert.equal(results[0].game_id, 'GhostSniper');
+  assert.deepEqual(results[0].tags, []);
+});
+
+test('search with empty query returns all, newest first', () => {
+  const p = newProvider();
+  p.addPlayer({ game_id: 'A' });
+  p.addPlayer({ game_id: 'B' });
+  const results = p.search('');
+  assert.equal(results.length, 2);
+  assert.equal(results[0].game_id, 'B');
+});
+
+test('updatePlayer changes fields and bumps updated_at', async () => {
+  const p = newProvider();
+  const created = p.addPlayer({ game_id: 'Edit01', kills: 1 });
+  await new Promise((r) => setTimeout(r, 5));
+  const updated = p.updatePlayer(created.id, { kills: 42, tags: ['车队'] });
+  assert.equal(updated.kills, 42);
+  assert.deepEqual(updated.tags, ['车队']);
+  assert.equal(updated.game_id, 'Edit01');
+  assert.notEqual(updated.updated_at, created.updated_at);
+});
+
+test('updatePlayer returns null for missing id', () => {
+  const p = newProvider();
+  assert.equal(p.updatePlayer(999, { kills: 1 }), null);
+});
+
+test('deletePlayer removes the row', () => {
+  const p = newProvider();
+  const created = p.addPlayer({ game_id: 'Del01' });
+  assert.equal(p.deletePlayer(created.id), true);
+  assert.equal(p.getById(created.id), null);
+  assert.equal(p.deletePlayer(created.id), false);
+});
