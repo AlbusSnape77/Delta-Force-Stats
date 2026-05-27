@@ -48,12 +48,13 @@ def value_below(tokens, label, W, H):
 
 
 def value_right(tokens, label, W, H, numeric=False):
-    """Nearest token to the right of `label` on the same row.
-    If numeric=True, only number-like tokens are considered (so a missing value
-    does not accidentally pick up the next label)."""
+    """Nearest token to the right of `label` on the same row, within the same
+    column block. If numeric=True, only number-like tokens are considered, so a
+    missing value does not pick up the next label or a far-away column's value."""
     if not label:
         return None
     y_tol = 0.02 * H
+    max_dx = 0.22 * W  # values live near their label; reject cross-column bleed
     best, best_dx = None, None
     for t in tokens:
         if t is label:
@@ -61,7 +62,7 @@ def value_right(tokens, label, W, H, numeric=False):
         if abs(cy(t) - cy(label)) > y_tol:
             continue
         dx = t["x"] - label["x2"]
-        if dx <= -5:
+        if dx <= -5 or dx > max_dx:
             continue
         if numeric and not is_number_token(t["text"]):
             continue

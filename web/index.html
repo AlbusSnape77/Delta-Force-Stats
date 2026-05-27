@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>三角洲 · 战绩分析器</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header>
+    <h1>三角洲 · 烽火地带 战绩分析器</h1>
+    <input id="search" type="text" placeholder="搜索昵称 / 标签 / 备注…" autocomplete="off" />
+  </header>
+
+  <section id="upload">
+    <div id="drop">
+      <input id="files" type="file" accept="image/*" multiple />
+      <div class="hint">拖入 / 粘贴(Ctrl+V) / 选择 你的 4 张截图（数据总览·排位赛·最近战绩·首页），顺序随意</div>
+      <div id="thumbs"></div>
+      <div class="row">
+        <span>已选 <span id="count">0</span> 张</span>
+        <button id="analyze">识别并记录</button>
+        <button id="clear" class="ghost">清空</button>
+      </div>
+      <div id="upmsg"></div>
+    </div>
+  </section>
+
+  <main id="result"></main>
+  <main id="list"></main>
+
+  <script src="app.js"></script>
+</body>
+</html>
