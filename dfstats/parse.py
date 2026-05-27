@@ -226,25 +226,27 @@ def parse_home(tokens, W, H):
         "赚损比", "高校特权", "游戏中心启动", "三角洲巅峰", "图鉴收集",
     }
 
-    # nickname: a CJK text token in the right region, not a known label / number / watermark
+    # The right-side character panel stacks: [信誉状态] / 昵称 / 称号 / 玩家ID.
+    # Nickname = topmost remaining token after excluding the credit-status badge,
+    # numbers, the long player-ID line, and known labels. Title = the token below it.
+    STATUS_HINTS = ("环境", "信誉", "状态", "在线", "离线", "良好")
     cands = []
     for t in tokens:
         s = t["text"].strip()
-        if cx(t) < 0.6 * W or cy(t) < 0.5 * H:
+        if cx(t) < 0.55 * W or cy(t) < 0.45 * H:
             continue
-        if not re.search(r"[一-鿿 A-Za-z]", s):
+        if not re.search(r"[一-鿿A-Za-z]", s):       # must contain CJK or letters
             continue
         if s in known_labels or s.startswith("CN") or is_number_token(s) or "ms" in s:
             continue
-        if "大师" in s or "猛攻" in s:  # title line, skip as nickname
+        if any(h in s for h in STATUS_HINTS):          # 信誉/安全状态徽章，如"安全环境良好"
+            continue
+        if "鼠牛" in s or re.search(r"\d{6,}", s):      # 玩家ID / UID 行
             continue
         cands.append(t)
     cands.sort(key=cy)
     out["nickname"] = txt(cands[0]) if cands else None
-
-    title = find_label(tokens, "大师")
-    out["title"] = txt(title)
-    out["likes"] = as_int(txt(find_label(tokens, "图鉴收集")))  # placeholder; refined below
+    out["title"] = txt(cands[1]) if len(cands) > 1 else None
 
     out["total_assets"] = txt(value_below(tokens, find_label(tokens, "总资产"), W, H))
     out["total_matches"] = as_int(txt(value_below(tokens, find_label(tokens, "总战局"), W, H)))
