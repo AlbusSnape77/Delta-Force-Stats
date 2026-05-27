@@ -47,8 +47,10 @@ def value_below(tokens, label, W, H):
     return best
 
 
-def value_right(tokens, label, W, H):
-    """Nearest token to the right of `label` on the same row."""
+def value_right(tokens, label, W, H, numeric=False):
+    """Nearest token to the right of `label` on the same row.
+    If numeric=True, only number-like tokens are considered (so a missing value
+    does not accidentally pick up the next label)."""
     if not label:
         return None
     y_tol = 0.02 * H
@@ -60,6 +62,8 @@ def value_right(tokens, label, W, H):
             continue
         dx = t["x"] - label["x2"]
         if dx <= -5:
+            continue
+        if numeric and not is_number_token(t["text"]):
             continue
         if best is None or dx < best_dx:
             best, best_dx = t, dx
@@ -169,7 +173,7 @@ def parse_overview(tokens, W, H):
         "revive_teammate": "复活队友",
     }
     for key, label in pairs.items():
-        out[key] = txt(value_right(tokens, find_label(tokens, label), W, H))
+        out[key] = txt(value_right(tokens, find_label(tokens, label), W, H, numeric=True))
     return out
 
 
