@@ -29,3 +29,5 @@ form input, form textarea { width: 100%; margin-top: 4px; padding: 8px; border-r
 menu { display: flex; justify-content: flex-end; gap: 10px; padding: 0; margin: 8px 0 0; }
 #save-btn { background: #ff7a45; color: #14171c; }
 .error { color: #ff6b6b; font-size: 13px; min-height: 18px; margin: 4px 0; }
+#confirm-dialog p { margin: 0 0 4px; }
+.danger { background: #d9484a; color: #fff; }

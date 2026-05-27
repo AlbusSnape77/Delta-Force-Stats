@@ -127,8 +127,26 @@ form.addEventListener('submit', async (e) => {
   }
 });
 
+const confirmDialog = document.getElementById('confirm-dialog');
+const confirmOk = document.getElementById('confirm-ok');
+const confirmCancel = document.getElementById('confirm-cancel');
+
+function askConfirm() {
+  return new Promise((resolve) => {
+    const finish = (result) => {
+      confirmOk.onclick = null;
+      confirmCancel.onclick = null;
+      confirmDialog.close();
+      resolve(result);
+    };
+    confirmOk.onclick = () => finish(true);
+    confirmCancel.onclick = () => finish(false);
+    confirmDialog.showModal();
+  });
+}
+
 async function removePlayer(id) {
-  if (!confirm('确定删除这个玩家档案？')) return;
+  if (!(await askConfirm())) return;
   await fetch(`/api/players/${id}`, { method: 'DELETE' });
   refresh();
 }
