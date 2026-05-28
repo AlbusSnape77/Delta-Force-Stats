@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>三角洲 · 校准按钮位置</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: system-ui, "Microsoft YaHei", sans-serif; background: #14171c; color: #e8eaed; }
+    header { padding: 14px 20px; background: #1c2027; border-bottom: 1px solid #2a313b; }
+    h1 { font-size: 18px; color: #ff7a45; margin: 0; }
+    h1 small { font-size: 12px; color: #7a818b; font-weight: normal; margin-left: 10px; }
+    main { padding: 16px 20px; display: grid; grid-template-columns: 320px 1fr; gap: 16px; }
+    @media (max-width: 880px) { main { grid-template-columns: 1fr; } }
+    .panel { background: #1c2027; border: 1px solid #2a313b; border-radius: 10px; padding: 14px; }
+    .step { font-size: 13px; color: #9aa1ab; margin-bottom: 10px; line-height: 1.5; }
+    button { cursor: pointer; border: none; border-radius: 8px; padding: 10px 18px; font-size: 14px;
+      background: #ff7a45; color: #14171c; }
+    button.ghost { background: #2a313b; color: #e8eaed; }
+    button:disabled { opacity: .4; cursor: not-allowed; }
+    .tlist { display: grid; gap: 6px; margin-top: 14px; }
+    .titem { display: flex; align-items: center; gap: 8px; padding: 8px 10px;
+      background: #11141a; border: 1px solid #262d36; border-radius: 8px; cursor: pointer;
+      font-size: 13px; }
+    .titem:hover { border-color: #ff7a45; }
+    .titem.active { border-color: #ff7a45; background: #241b14; }
+    .titem .dot { width: 10px; height: 10px; border-radius: 50%; background: #5a2727; flex-shrink: 0; }
+    .titem.done .dot { background: #6ee787; }
+    .titem .lab { flex: 1; }
+    .titem .desc { color: #7a818b; font-size: 11px; }
+    .titem .del { color: #ff6b6b; font-size: 12px; background: none; padding: 2px 6px; }
+    .canvas-wrap { background: #0a0d12; border: 1px solid #2a313b; border-radius: 10px;
+      overflow: auto; max-height: calc(100vh - 130px); position: relative; }
+    canvas { display: block; cursor: crosshair; }
+    .empty-canvas { padding: 60px; text-align: center; color: #5d646e; }
+    .hint { color: #ffd08a; font-size: 12px; margin-top: 8px; }
+    .row { display: flex; gap: 8px; align-items: center; margin-top: 10px; }
+    .row .grow { flex: 1; }
+    #toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+      padding: 8px 16px; background: #234b2e; color: #6ee787; border-radius: 6px;
+      font-size: 13px; opacity: 0; transition: .2s; pointer-events: none; }
+    #toast.show { opacity: 1; }
+    #toast.err { background: #5a2727; color: #ff9a9a; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>校准游戏按钮位置 <small>给每个按钮在屏幕上的样子拍一小张参考图,机器人靠它定位</small></h1>
+  </header>
+
+  <main>
+    <div class="panel">
+      <div class="step">
+        <b>步骤</b><br>
+        1. 把游戏切到 <b>主页/加好友界面</b>,确保下面的按钮都能看到<br>
+        2. 点「拍当前屏幕」<br>
+        3. 在右边列表里选要校准的项<br>
+        4. 在右边的截屏上 <b>按住鼠标拖一个矩形</b> 框住该按钮(框小一点、贴紧该图标)<br>
+        5. 点「保存为...」<br>
+        6. 全部 8 项变绿就 OK
+      </div>
+      <button id="shotBtn">拍当前屏幕</button>
+      <button class="ghost" id="reShotBtn" disabled>重新拍</button>
+      <div class="tlist" id="tlist"></div>
+    </div>
+
+    <div>
+      <div class="canvas-wrap" id="cwrap">
+        <div class="empty-canvas">点左边「拍当前屏幕」开始</div>
+      </div>
+      <div class="hint" id="hint"></div>
+      <div class="row">
+        <span class="grow"></span>
+        <button class="ghost" id="cancelSel" disabled>取消选区</button>
+        <button id="saveSel" disabled>保存为 ...</button>
+      </div>
+    </div>
+  </main>
+
+  <div id="toast"></div>
+
+  <script>
+    const TEMPLATES = [
+      ["add_friend",        "加好友按钮",     "主页/大厅里点开加好友面板的入口"],
+      ["friend_search_box", "搜索输入框",     "加好友面板里的搜索框(光标会进去)"],
+      ["first_result",      "搜索结果第一个", "搜出来后,要点开的那一行/那张卡"],
+      ["tab_profile",       "个人信息 tab",   "角色信息左侧导航的「个人信息」"],
+      ["tab_details",       "详细数据 tab",   "角色信息左侧导航的「详细数据」"],
+      ["dropdown_mode",     "模式下拉",       "详细数据上方那个「数据总览 ▾」下拉按钮"],
+      ["dropdown_ranked",   "排位赛数据 选项","下拉展开后的「排位赛数据」那一项"],
+      ["tab_history",       "历史战绩 tab",   "角色信息左侧导航的「历史战绩」"],
+    ];
+
+    const cwrap = document.getElementById("cwrap");
+    const tlistEl = document.getElementById("tlist");
+    const hintEl = document.getElementById("hint");
+    const cancelBtn = document.getElementById("cancelSel");
+    const saveBtn = document.getElementById("saveSel");
+    const reShotBtn = document.getElementById("reShotBtn");
+    let canvas = null, ctx = null, baseImg = null;
+    let activeName = null;
+    let rect = null;      // selection rect in displayed coords
+    let drag = null;      // {x0,y0} during drag
+
+    function toast(msg, ok = true) {
+      const t = document.getElementById("toast");
+      t.textContent = msg; t.classList.toggle("err", !ok); t.classList.add("show");
+      setTimeout(() => t.classList.remove("show"), 1600);
+    }
+
+    async function refreshStatus() {
+      const r = await fetch("/api/auto-stats");
+      const s = await r.json();
+      const cal = s.calibration || {};
+      tlistEl.innerHTML = TEMPLATES.map(([name, lab, desc]) => {
+        const done = cal[name] && cal[name].exists;
+        return `<div class="titem ${done ? "done" : ""} ${activeName === name ? "active" : ""}" data-name="${name}">
+          <span class="dot"></span>
+          <div class="lab"><div>${lab}</div><div class="desc">${desc}</div></div>
+          ${done ? `<button class="del" data-del="${name}">删</button>` : ""}
+        </div>`;
+      }).join("");
+      tlistEl.querySelectorAll(".titem").forEach((el) => {
+        el.onclick = (e) => {
+          if (e.target.dataset.del) return;
+          setActive(el.dataset.name);
+        };
+      });
+      tlistEl.querySelectorAll("[data-del]").forEach((b) => {
+        b.onclick = async (e) => {
+          e.stopPropagation();
+          await fetch("/api/calibration/" + b.dataset.del, { method: "DELETE" });
+          toast("已删除"); refreshStatus();
+        };
+      });
+    }
+
+    function setActive(name) {
+      activeName = name;
+      saveBtn.textContent = "保存为 " + (TEMPLATES.find((t) => t[0] === name) || [, name])[1];
+      saveBtn.disabled = !rect;
+      [...tlistEl.querySelectorAll(".titem")].forEach((el) => el.classList.toggle("active", el.dataset.name === name));
+      hintEl.textContent = rect ? "已选区,点右下保存" : "请在右边截屏上按住鼠标拖出一个矩形框住该按钮";
+    }
+
+    document.getElementById("shotBtn").onclick = async () => {
+      hintEl.textContent = "正在拍屏…";
+      const url = "/api/screenshot.png?ts=" + Date.now();
+      const img = new Image();
+      img.onload = () => {
+        cwrap.innerHTML = "";
+        canvas = document.createElement("canvas");
+        canvas.width = img.naturalWidth; canvas.height = img.naturalHeight;
+        // scale down for display if too big
+        const scale = Math.min(1, (cwrap.clientWidth - 4) / canvas.width);
+        canvas.style.width = (canvas.width * scale) + "px";
+        canvas.style.height = (canvas.height * scale) + "px";
+        ctx = canvas.getContext("2d");
+        baseImg = img;
+        ctx.drawImage(img, 0, 0);
+        cwrap.appendChild(canvas);
+        wireCanvas();
+        reShotBtn.disabled = false;
+        hintEl.textContent = "选一项并在截图上拖出矩形";
+      };
+      img.onerror = () => { hintEl.textContent = "拍屏失败"; toast("拍屏失败", false); };
+      img.src = url;
+    };
+    reShotBtn.onclick = () => document.getElementById("shotBtn").click();
+
+    function wireCanvas() {
+      const toCanvas = (e) => {
+        const r = canvas.getBoundingClientRect();
+        const sx = canvas.width / r.width;
+        return { x: (e.clientX - r.left) * sx, y: (e.clientY - r.top) * sx };
+      };
+      canvas.onmousedown = (e) => { drag = toCanvas(e); rect = null; redraw(); };
+      canvas.onmousemove = (e) => {
+        if (!drag) return;
+        const p = toCanvas(e);
+        rect = { x: Math.min(drag.x, p.x), y: Math.min(drag.y, p.y),
+                 w: Math.abs(p.x - drag.x), h: Math.abs(p.y - drag.y) };
+        redraw();
+      };
+      canvas.onmouseup = () => {
+        drag = null;
+        if (rect && rect.w > 6 && rect.h > 6) {
+          saveBtn.disabled = !activeName;
+          cancelBtn.disabled = false;
+          hintEl.textContent = activeName ? "点「保存为...」" : "左边选一项再点保存";
+        } else { rect = null; }
+      };
+    }
+    function redraw() {
+      if (!ctx || !baseImg) return;
+      ctx.drawImage(baseImg, 0, 0);
+      if (rect) {
+        ctx.strokeStyle = "#ff7a45"; ctx.lineWidth = 2;
+        ctx.strokeRect(rect.x, rect.y, rect.w, rect.h);
+        ctx.fillStyle = "rgba(255,122,69,.18)";
+        ctx.fillRect(rect.x, rect.y, rect.w, rect.h);
+      }
+    }
+    cancelBtn.onclick = () => { rect = null; saveBtn.disabled = true; cancelBtn.disabled = true; redraw(); };
+
+    saveBtn.onclick = async () => {
+      if (!activeName || !rect) return;
+      const out = document.createElement("canvas");
+      out.width = Math.round(rect.w); out.height = Math.round(rect.h);
+      out.getContext("2d").drawImage(baseImg, rect.x, rect.y, rect.w, rect.h, 0, 0, rect.w, rect.h);
+      const blob = await new Promise((r) => out.toBlob(r, "image/png"));
+      const fd = new FormData(); fd.append("image", blob, activeName + ".png");
+      const r = await fetch("/api/calibration/" + activeName, { method: "POST", body: fd });
+      if (r.ok) {
+        toast("已保存 " + activeName);
+        rect = null; saveBtn.disabled = true; cancelBtn.disabled = true; redraw();
+        await refreshStatus();
+      } else { toast("保存失败", false); }
+    };
+
+    refreshStatus();
+  </script>
+</body>
+</html>

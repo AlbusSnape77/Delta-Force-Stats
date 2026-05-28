@@ -334,4 +334,75 @@ async function doSearch() {
 }
 searchEl.addEventListener("input", doSearch);
 
+// ---------- auto-lookup (drive game client) ----------
+const STEP_LABELS = {
+  open_friend: "切到加好友", type_id: "输入ID", search: "搜索",
+  open_profile: "打开角色信息", tab_profile: "截首页", tab_details: "截数据总览",
+  switch_ranked: "切排位赛", tab_history: "截最近战绩", return_home: "退回主页",
+  ocr: "本地 OCR 识别中",
+};
+
+async function refreshAutoStats() {
+  try {
+    const r = await fetch("/api/auto-stats");
+    if (!r.ok) return;
+    const s = await r.json();
+    const cal = s.calibration || {};
+    const missing = Object.entries(cal).filter(([k, v]) => typeof v === "object" && !v.exists).length;
+    const calTxt = cal.all_ready ? "校准 ✔" : `<span style="color:#ff9a9a">校准缺 ${missing}</span>`;
+    document.getElementById("al-stats").innerHTML =
+      `${calTxt} · 今日 ${s.today_count}/${s.daily_cap} · 间隔 ${s.config.min_interval | 0}–${s.config.max_interval | 0}s`;
+  } catch (_) {}
+}
+refreshAutoStats();
+setInterval(refreshAutoStats, 10000);
+
+const alInput = document.getElementById("al-input");
+const alStatus = document.getElementById("al-status");
+document.getElementById("al-go").onclick = autoLookup;
+alInput.addEventListener("keydown", (e) => { if (e.key === "Enter") autoLookup(); });
+
+async function autoLookup() {
+  const q = alInput.value.trim();
+  if (!q) { alStatus.innerHTML = `<span class="pill pill-err">先输入要查的 ID</span>`; return; }
+  alStatus.innerHTML = `<span class="pill pill-run">提交中…</span>`;
+  try {
+    const r = await fetch("/api/auto-lookup", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ query: q }) });
+    const body = await r.json();
+    if (!r.ok) { alStatus.innerHTML = `<span class="pill pill-err">✘ ${esc(body.error || "失败")}</span>`; return; }
+    pollJob(body.job_id);
+  } catch (e) {
+    alStatus.innerHTML = `<span class="pill pill-err">✘ ${esc(String(e))}</span>`;
+  }
+}
+
+async function pollJob(id) {
+  while (true) {
+    await new Promise((r) => setTimeout(r, 900));
+    let r, j;
+    try {
+      r = await fetch(`/api/job/${id}`);
+      if (!r.ok) { alStatus.innerHTML = `<span class="pill pill-err">任务消失</span>`; return; }
+      j = await r.json();
+    } catch (_) { continue; }
+
+    if (j.state === "pending") {
+      alStatus.innerHTML = `<span class="pill pill-run">排队 · ${esc(j.msg || "")}</span>`;
+    } else if (j.state === "running") {
+      const lab = STEP_LABELS[j.step] || j.step || j.msg || "进行中";
+      alStatus.innerHTML = `<span class="pill pill-run">🎮 ${esc(lab)}</span>`;
+    } else if (j.state === "done") {
+      alStatus.innerHTML = `<span class="pill pill-ok">✔ 完成: ${esc(j.player ? j.player.nickname : "")}</span>`;
+      await refreshList();
+      if (j.player) showInDetail(j.player);
+      refreshAutoStats();
+      return;
+    } else if (j.state === "error") {
+      alStatus.innerHTML = `<span class="pill pill-err">✘ ${esc(j.error || "失败")}</span>`;
+      refreshAutoStats();
+      return;
+    }
+  }
+}
+
 doSearch();

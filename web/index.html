@@ -12,6 +12,17 @@
     <input id="search" type="text" placeholder="搜索昵称 / 标签 / 备注…" autocomplete="off" />
   </header>
 
+  <section id="auto-lookup">
+    <h2>自动查询 <small>给个对方 ID,后台机器人去游戏里查 · 单次约 15–30 秒</small></h2>
+    <div class="al-row">
+      <input id="al-input" placeholder="输入对方 ID 或昵称,回车" autocomplete="off" />
+      <button id="al-go">查询</button>
+      <a class="al-cal" href="/calibrate.html" target="_blank">校准按钮 ▸</a>
+      <span id="al-stats" class="al-stats"></span>
+    </div>
+    <div id="al-status"></div>
+  </section>
+
   <section id="upload">
     <div id="drop">
       <input id="files" type="file" accept="image/*" multiple />
