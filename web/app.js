@@ -117,9 +117,8 @@ $("analyze").onclick = async () => {
     upmsg.textContent = body.recognized_nickname
       ? "已识别并记录：" + body.recognized_nickname + "（如名字识别有误，可在卡片上直接改后保存）"
       : "未能识别昵称，请在下方填写昵称后保存。";
-    resultEl.innerHTML = "";
-    resultEl.appendChild(renderCard(body.player));
     await refreshList();
+    showInDetail(body.player);
   } catch (e) { upmsg.textContent = "请求失败：" + e; }
 };
 
@@ -269,23 +268,38 @@ function renderRow(p) {
   div.className = "row-item";
   div.dataset.id = p.id;
   div.innerHTML = `
-    <span class="rn">${esc(p.nickname)}</span>
-    ${d.home && d.home.title ? `<span class="title-badge">${esc(d.home.title)}</span>` : ""}
-    ${v ? `<span class="verdict ${v.c}">${v.t}</span>` : ""}
-    ${kdSec != null ? `<span class="row-kd ${kdClass(kdSec)}">绝密KD <b>${esc(kdSec)}</b></span>` : ""}
-    ${esc2 ? `<span class="row-esc ${rateClass(esc2)}">撤离 <b>${esc(esc2)}</b></span>` : ""}
-    ${(p.tags || []).length ? `<span class="row-tags">${p.tags.map((t) => `<i class="tag">${esc(t)}</i>`).join("")}</span>` : ""}
-    <span class="row-time">${p.updated_at ? new Date(p.updated_at).toLocaleDateString() : ""}</span>
-    <span class="expand-hint">查看 ▾</span>
+    <div class="r1">
+      <span class="rn">${esc(p.nickname)}</span>
+      ${d.home && d.home.title ? `<span class="title-mini">${esc(d.home.title)}</span>` : ""}
+      ${v ? `<span class="verdict ${v.c}">${v.t}</span>` : ""}
+      <span class="row-arrow">›</span>
+    </div>
+    <div class="r2">
+      ${kdSec != null ? `<span class="row-kd ${kdClass(kdSec)}">绝密 <b>${esc(kdSec)}</b></span>` : ""}
+      ${esc2 ? `<span class="row-esc ${rateClass(esc2)}">撤离 <b>${esc(esc2)}</b></span>` : ""}
+      ${(p.tags || []).length ? `<span class="row-tags">${p.tags.map((t) => `<i class="tag">${esc(t)}</i>`).join("")}</span>` : ""}
+      <span class="row-time">${p.updated_at ? new Date(p.updated_at).toLocaleDateString() : ""}</span>
+    </div>
   `;
   div.onclick = () => expandRow(div, p);
   return div;
 }
 
-function expandRow(rowEl, p) {
-  const card = renderCard(p, { onCollapse: refreshList });
-  rowEl.replaceWith(card);
+function setActiveRow(id) {
+  listEl.querySelectorAll(".row-item.active").forEach((e) => e.classList.remove("active"));
+  const row = id != null ? listEl.querySelector(`.row-item[data-id="${id}"]`) : null;
+  if (row) row.classList.add("active");
 }
+
+function showInDetail(p) {
+  setActiveRow(p.id);
+  const card = renderCard(p, { onCollapse: () => { resultEl.innerHTML = ""; setActiveRow(null); } });
+  resultEl.innerHTML = "";
+  resultEl.appendChild(card);
+  if (window.innerWidth < 820) resultEl.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+function expandRow(rowEl, p) { showInDetail(p); }
 
 async function refreshList() {
   const q = searchEl.value.trim();
@@ -299,7 +313,12 @@ async function refreshList() {
   players.forEach((p) => listEl.appendChild(renderRow(p)));
 }
 
-async function doSearch() { resultEl.innerHTML = ""; await refreshList(); }
+async function doSearch() {
+  await refreshList();
+  // re-highlight whichever player is currently shown in the detail pane
+  const open = resultEl.querySelector(".card[data-id]");
+  if (open) setActiveRow(open.dataset.id);
+}
 searchEl.addEventListener("input", doSearch);
 
 doSearch();
