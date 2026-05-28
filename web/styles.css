@@ -60,13 +60,8 @@ main { padding: 0 20px 24px; display: grid; gap: 16px; }
 .keyrow .bv { font-size: 19px; font-weight: 800; color: #e8eaed; margin-top: 2px; }
 .bv.good { color: #6ee787; } .bv.mid { color: #ffce5a; } .bv.bad { color: #ff6b6b; }
 
-/* radar 五维 mini-bars */
-.radar5 { display: flex; gap: 10px; margin-bottom: 10px; }
-.radar5 .r { flex: 1; text-align: center; }
-.radar5 .rbar { height: 5px; background: #2a313b; border-radius: 3px; overflow: hidden; }
-.radar5 .rbar i { display: block; height: 100%; background: linear-gradient(90deg,#ff7a45,#ffce5a); }
-.radar5 .rv { font-size: 15px; font-weight: 700; color: #ffd08a; margin-top: 3px; }
-.radar5 .rl { font-size: 11px; color: #8a919b; }
+/* radar 五维 pentagon chart */
+.radar-svg { width: 100%; max-width: 240px; height: auto; display: block; margin: 2px auto 8px; }
 
 /* details (collapsed by default) */
 .toggle { background: none; color: #8a919b; padding: 4px 0; font-size: 12px; }

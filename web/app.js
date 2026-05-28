@@ -26,6 +26,37 @@ function esc(s) {
 const val = (v) => (v == null || v === "" ? "—" : esc(v));
 const num = (v) => { const n = parseFloat(v); return isNaN(n) ? null : n; };
 
+// ---- pentagon radar chart (game-style), one labelled series ----
+function radarSVG(radar) {
+  const keys = RADAR_KEYS;            // 战斗(top) 生存 合作 搜索 财富, clockwise
+  const cx = 90, cy = 82, R = 54, labOff = 17, W = 180, H = 168;
+  const ang = (i) => (-90 + i * 72) * Math.PI / 180;
+  const pt = (i, r) => [cx + r * Math.cos(ang(i)), cy + r * Math.sin(ang(i))];
+  const poly = (r) => keys.map((_, i) => pt(i, r).map((n) => n.toFixed(1)).join(",")).join(" ");
+
+  let grid = "";
+  [0.25, 0.5, 0.75, 1].forEach((f) => {
+    grid += `<polygon points="${poly(R * f)}" fill="none" stroke="#2a313b" stroke-width="1"/>`;
+  });
+  let axes = "";
+  keys.forEach((_, i) => { const [x, y] = pt(i, R); axes += `<line x1="${cx}" y1="${cy}" x2="${x.toFixed(1)}" y2="${y.toFixed(1)}" stroke="#2a313b" stroke-width="1"/>`; });
+
+  const vals = keys.map((k) => { const v = (radar || {})[k]; return v == null ? 0 : Math.max(0, Math.min(100, v)); });
+  const dpts = vals.map((v, i) => pt(i, R * v / 100).map((n) => n.toFixed(1)).join(",")).join(" ");
+  const dataPoly = `<polygon points="${dpts}" fill="rgba(255,122,69,.30)" stroke="#ff7a45" stroke-width="2"/>`;
+  let dots = "";
+  vals.forEach((v, i) => { const [x, y] = pt(i, R * v / 100); dots += `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="2.2" fill="#ff7a45"/>`; });
+
+  let labels = "";
+  keys.forEach((k, i) => {
+    const [lx, ly] = pt(i, R + labOff);
+    const v = (radar || {})[k];
+    labels += `<text x="${lx.toFixed(1)}" y="${(ly - 1).toFixed(1)}" text-anchor="middle" font-size="9" fill="#8a919b">${k}</text>`;
+    labels += `<text x="${lx.toFixed(1)}" y="${(ly + 10).toFixed(1)}" text-anchor="middle" font-size="12" font-weight="700" fill="#ffd08a">${v == null ? "—" : v}</text>`;
+  });
+  return `<svg viewBox="0 0 ${W} ${H}" class="radar-svg">${grid}${axes}${dataPoly}${dots}${labels}</svg>`;
+}
+
 // ---- skill colour heuristics (green=strong, amber=mid, red=weak) ----
 function kdClass(v) { const n = num(v); if (n == null) return ""; return n >= 2 ? "good" : n >= 1 ? "mid" : "bad"; }
 function rateClass(v) { const n = num(v); if (n == null) return ""; return n >= 45 ? "good" : n >= 30 ? "mid" : "bad"; }
@@ -106,13 +137,6 @@ function modeColumn(title, mode, m) {
       <span class="kdl">${KD_LABELS[i]}</span></div>`;
   }).join("");
 
-  const radar = RADAR_KEYS.map((k) => {
-    const rv = (m.radar || {})[k];
-    const w = rv == null ? 0 : Math.max(0, Math.min(100, rv));
-    return `<div class="r"><div class="rbar"><i style="width:${w}%"></i></div>
-      <div class="rv">${rv == null ? "—" : rv}</div><div class="rl">${k}</div></div>`;
-  }).join("");
-
   const details = [["段位分", m.rank_score], ...DETAIL_FIELDS.map(([lab, key]) => [lab, m[key]])]
     .map(([k, vv]) => `<div class="k">${k}</div><div class="v">${val(vv)}</div>`).join("");
 
@@ -131,7 +155,7 @@ function modeColumn(title, mode, m) {
         <div class="kbig"><div class="lab">赚损比</div><div class="bv">${val(m.profit_ratio)}</div></div>
       </div>
 
-      <div class="radar5">${radar}</div>
+      ${radarSVG(m.radar)}
 
       <button type="button" class="toggle">详细数据 ▾</button>
       <div class="grid details-hidden">${details}</div>
