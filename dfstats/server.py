@@ -53,6 +53,13 @@ def lookup():
         player = store.upsert_snapshot(conn, nickname, record)
     finally:
         conn.close()
+
+    # OCR finished — drop the screenshots so the uploads folder doesn't grow forever.
+    for p in paths:
+        try:
+            os.remove(p)
+        except OSError:
+            pass
     return jsonify({"player": player, "recognized_nickname": record.get("nickname")})
 
 

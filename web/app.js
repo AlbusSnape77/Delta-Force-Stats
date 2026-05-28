@@ -117,9 +117,9 @@ $("analyze").onclick = async () => {
     upmsg.textContent = body.recognized_nickname
       ? "已识别并记录：" + body.recognized_nickname + "（如名字识别有误，可在卡片上直接改后保存）"
       : "未能识别昵称，请在下方填写昵称后保存。";
-    listEl.innerHTML = "";
     resultEl.innerHTML = "";
     resultEl.appendChild(renderCard(body.player));
+    await refreshList();
   } catch (e) { upmsg.textContent = "请求失败：" + e; }
 };
 
@@ -176,7 +176,7 @@ function recentBlock(recent) {
   return `<div class="recent"><h3>最近战绩 · ${(recent.matches || []).length} 场</h3>${rows}</div>`;
 }
 
-function renderCard(p) {
+function renderCard(p, opts = {}) {
   const d = p.data || {};
   const home = d.home || {};
   const el = document.createElement("div");
@@ -216,12 +216,19 @@ function renderCard(p) {
       if (c) box.classList.add(c);
     };
   });
-  el.querySelector(".save").onclick = () => saveCard(el, p);
+  if (opts.onCollapse) {
+    const collapse = document.createElement("button");
+    collapse.className = "ghost";
+    collapse.textContent = "收起";
+    collapse.onclick = (ev) => { ev.stopPropagation(); opts.onCollapse(); };
+    el.querySelector(".actions").insertBefore(collapse, el.querySelector(".actions").firstChild);
+  }
+  el.querySelector(".save").onclick = () => saveCard(el, p, opts);
   el.querySelector(".del").onclick = () => delCard(el, p);
   return el;
 }
 
-async function saveCard(el, p) {
+async function saveCard(el, p, opts = {}) {
   const data = JSON.parse(JSON.stringify(p.data || {}));
   ["overview", "ranked"].forEach((mode) => {
     if (!data[mode]) return;
@@ -241,7 +248,7 @@ async function saveCard(el, p) {
   });
   if (r.ok) {
     const updated = await r.json();
-    el.replaceWith(renderCard(updated));
+    el.replaceWith(renderCard(updated, opts));
   } else { alert("保存失败"); }
 }
 
@@ -251,16 +258,48 @@ async function delCard(el, p) {
   el.remove();
 }
 
-// ---------- search ----------
-async function doSearch() {
-  resultEl.innerHTML = "";
+// ---------- compact list + click-to-expand ----------
+function renderRow(p) {
+  const d = p.data || {};
+  const ov = d.overview || d.ranked || {};
+  const v = verdict(ov);
+  const kdSec = (ov.kd || [])[2];
+  const esc2 = ov.escape_rate;
+  const div = document.createElement("div");
+  div.className = "row-item";
+  div.dataset.id = p.id;
+  div.innerHTML = `
+    <span class="rn">${esc(p.nickname)}</span>
+    ${d.home && d.home.title ? `<span class="title-badge">${esc(d.home.title)}</span>` : ""}
+    ${v ? `<span class="verdict ${v.c}">${v.t}</span>` : ""}
+    ${kdSec != null ? `<span class="row-kd ${kdClass(kdSec)}">绝密KD <b>${esc(kdSec)}</b></span>` : ""}
+    ${esc2 ? `<span class="row-esc ${rateClass(esc2)}">撤离 <b>${esc(esc2)}</b></span>` : ""}
+    ${(p.tags || []).length ? `<span class="row-tags">${p.tags.map((t) => `<i class="tag">${esc(t)}</i>`).join("")}</span>` : ""}
+    <span class="row-time">${p.updated_at ? new Date(p.updated_at).toLocaleDateString() : ""}</span>
+    <span class="expand-hint">查看 ▾</span>
+  `;
+  div.onclick = () => expandRow(div, p);
+  return div;
+}
+
+function expandRow(rowEl, p) {
+  const card = renderCard(p, { onCollapse: refreshList });
+  rowEl.replaceWith(card);
+}
+
+async function refreshList() {
   const q = searchEl.value.trim();
   const r = await fetch(`/api/players?q=${encodeURIComponent(q)}`);
   const players = await r.json();
   listEl.innerHTML = "";
-  if (!players.length) { listEl.innerHTML = `<div class="empty">${q ? "没找到「" + esc(q) + "」" : "还没有任何记录，上传截图开始记录吧"}</div>`; return; }
-  players.forEach((p) => listEl.appendChild(renderCard(p)));
+  if (!players.length) {
+    listEl.innerHTML = `<div class="empty">${q ? "没找到「" + esc(q) + "」" : "还没有任何记录，上传截图开始记录吧"}</div>`;
+    return;
+  }
+  players.forEach((p) => listEl.appendChild(renderRow(p)));
 }
+
+async function doSearch() { resultEl.innerHTML = ""; await refreshList(); }
 searchEl.addEventListener("input", doSearch);
 
 doSearch();
