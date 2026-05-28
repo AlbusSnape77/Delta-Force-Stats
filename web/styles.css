@@ -35,6 +35,14 @@ main { display: grid; gap: 16px; }
 .card .nick { font-size: 18px; font-weight: 700; padding: 5px 10px; background: #11141a;
   border: 1px solid #333a44; border-radius: 6px; color: #fff; min-width: 170px; }
 .title-badge { font-size: 12px; color: #b6e39a; background: #2f3a2a; padding: 3px 9px; border-radius: 999px; }
+.uid-block { display: inline-flex; align-items: center; gap: 6px;
+  background: #11141a; border: 1px solid #333a44; border-radius: 6px; padding: 3px 8px; }
+.uid-block .uid-l { color: #5d646e; font-size: 11px; font-weight: 600; letter-spacing: .5px; }
+.uid-block .uid { font-family: ui-monospace, Consolas, monospace; font-size: 12px; color: #c4c9d0; user-select: all; }
+.uid-block .copy-btn { background: #2a313b; color: #e8eaed; padding: 3px 10px;
+  font-size: 12px; border-radius: 5px; border: none; cursor: pointer; }
+.uid-block .copy-btn:hover { background: #3a4250; }
+.uid-block .copy-btn.copied { background: #234b2e; color: #6ee787; }
 .tags-input { flex: 1; min-width: 150px; padding: 6px 8px; background: #11141a; border: 1px solid #333a44; border-radius: 6px; color: #e8eaed; }
 
 .modes { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 14px; }

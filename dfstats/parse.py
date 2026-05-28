@@ -226,6 +226,20 @@ def parse_home(tokens, W, H):
         "赚损比", "高校特权", "游戏中心启动", "三角洲巅峰", "图鉴收集",
     }
 
+    # Player UID: a long digit run in the right half (e.g. "鼠牛:1826…" or
+    # "45130520…"). Watermark token "CNUID:…" is excluded.
+    uid = None
+    for t in tokens:
+        s = t["text"]
+        if "CNUID" in s or "ms" in s:
+            continue
+        if cx(t) < 0.45 * W:
+            continue
+        digits = re.sub(r"\D", "", s)
+        if len(digits) >= 15 and (uid is None or len(digits) > len(uid)):
+            uid = digits
+    out["uid"] = uid
+
     # The right-side character panel stacks: [信誉状态] / 昵称 / 称号 / 玩家ID.
     # Nickname = topmost remaining token after excluding the credit-status badge,
     # numbers, the long player-ID line, and known labels. Title = the token below it.

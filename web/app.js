@@ -185,6 +185,10 @@ function renderCard(p, opts = {}) {
     <div class="top">
       <input class="nick" value="${esc(p.nickname)}" title="名字识别错了可直接改" />
       ${home.title ? `<span class="title-badge">${esc(home.title)}</span>` : ""}
+      ${home.uid ? `<span class="uid-block">
+        <span class="uid-l">UID</span>
+        <code class="uid">${esc(home.uid)}</code>
+        <button type="button" class="copy-btn" title="复制 UID">复制</button></span>` : ""}
       <input class="tags-input" placeholder="标签，逗号分隔（老六, 演员）" value="${esc((p.tags || []).join(", "))}" />
     </div>
     <div class="modes">
@@ -224,6 +228,15 @@ function renderCard(p, opts = {}) {
   }
   el.querySelector(".save").onclick = () => saveCard(el, p, opts);
   el.querySelector(".del").onclick = () => delCard(el, p);
+  const copyBtn = el.querySelector(".copy-btn");
+  if (copyBtn) copyBtn.onclick = (ev) => {
+    ev.stopPropagation();
+    const uid = (home || {}).uid || "";
+    navigator.clipboard.writeText(uid).then(() => {
+      copyBtn.textContent = "已复制 ✔"; copyBtn.classList.add("copied");
+      setTimeout(() => { copyBtn.textContent = "复制"; copyBtn.classList.remove("copied"); }, 1200);
+    }).catch(() => { copyBtn.textContent = "复制失败"; setTimeout(() => { copyBtn.textContent = "复制"; }, 1500); });
+  };
   return el;
 }
 
