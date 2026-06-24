@@ -12,8 +12,12 @@ from .lookup import build_record
 from .automate import TEMPLATES, grab_screen, save_image
 import cv2
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+from .paths import app_root, bundle_root
+
+ROOT = app_root()
 WEB_DIR = os.path.join(ROOT, "web")
+if not os.path.isdir(WEB_DIR):                    # frozen exe: use the bundled copy
+    WEB_DIR = os.path.join(bundle_root(), "web")
 UPLOAD_DIR = os.path.join(ROOT, "data", "uploads")
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
@@ -132,6 +136,14 @@ def auto_lookup_job(job_id):
     return jsonify(j)
 
 
+@app.post("/api/job/<job_id>/cancel")
+def auto_lookup_cancel(job_id):
+    j = jobs.cancel_job(job_id)
+    if not j:
+        return jsonify({"error": "not found"}), 404
+    return jsonify(j)
+
+
 @app.get("/api/jobs")
 def auto_lookup_list():
     return jsonify(jobs.list_jobs())
@@ -181,8 +193,16 @@ def calibration_delete(name):
 
 
 def main():
+    import sys
+    import threading
+    import webbrowser
     port = int(os.environ.get("PORT", "5174"))
     print(f"三角洲战绩分析器: http://localhost:{port}")
+    # 一键体验 only for the packaged exe: pop the browser once the server is up
+    # (run() blocks, so fire on a timer). `python -m dfstats.server` stays quiet.
+    if getattr(sys, "frozen", False):
+        print("关闭这个窗口即退出程序。")
+        threading.Timer(1.2, lambda: webbrowser.open(f"http://localhost:{port}")).start()
     app.run(host="0.0.0.0", port=port)
 
 

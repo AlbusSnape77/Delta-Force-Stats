@@ -5,7 +5,9 @@ import json
 import sqlite3
 from datetime import datetime, timezone
 
-DB_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data", "players.db")
+from .paths import app_root
+
+DB_PATH = os.path.join(app_root(), "data", "players.db")
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS players (

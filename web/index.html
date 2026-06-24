@@ -7,26 +7,31 @@
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
-  <header>
-    <h1>三角洲 · 烽火地带 战绩分析器</h1>
-    <input id="search" type="text" placeholder="搜索昵称 / 标签 / 备注…" autocomplete="off" />
-  </header>
-
-  <section id="auto-lookup">
-    <h2>自动查询 <small>给个对方 ID,后台机器人去游戏里查 · 单次约 15–30 秒</small></h2>
-    <div class="al-row">
-      <input id="al-input" placeholder="输入对方 ID 或昵称,回车" autocomplete="off" />
-      <button id="al-go">查询</button>
-      <a class="al-cal" href="/calibrate.html" target="_blank">校准按钮 ▸</a>
-      <span id="al-stats" class="al-stats"></span>
+  <!-- 指挥栏:品牌 + 查询(主入口) + 状态 -->
+  <header id="topbar">
+    <div class="brand">
+      <span class="mark">◢◤</span>
+      <span class="bn">DELTA<b>STATS</b></span>
+      <span class="bsub">烽火地带 · 战绩分析</span>
     </div>
-    <div id="al-status"></div>
-  </section>
+    <div class="cmd">
+      <input id="al-input" placeholder="输入对方昵称或编号(UID)，回车查询" autocomplete="off" />
+      <button id="al-go">查 询</button>
+      <button id="al-stop" hidden>停止</button>
+    </div>
+    <div class="top-meta">
+      <span id="al-stats"></span>
+      <a class="al-cal" href="/calibrate.html" target="_blank">校准</a>
+    </div>
+  </header>
+  <div id="al-status"></div>
 
-  <section id="upload">
+  <!-- 备用入口:手动上传截图(默认收起;粘贴图片自动展开) -->
+  <details id="upload">
+    <summary>手动上传截图 <span class="sum-hint">备用 · 拖入或 Ctrl+V 粘贴 4 张资料页截图</span></summary>
     <div id="drop">
       <input id="files" type="file" accept="image/*" multiple />
-      <div class="hint">拖入 / 粘贴(Ctrl+V) / 选择 你的 4 张截图（数据总览·排位赛·最近战绩·首页），顺序随意</div>
+      <div class="hint">拖入 / 粘贴(Ctrl+V) / 选择 4 张截图（数据总览·排位赛·最近战绩·首页），顺序随意</div>
       <div id="thumbs"></div>
       <div class="row">
         <span>已选 <span id="count">0</span> 张</span>
@@ -35,11 +40,15 @@
       </div>
       <div id="upmsg"></div>
     </div>
-  </section>
+  </details>
 
-  <div id="pane-wrap">
-    <main id="list" class="list-pane"></main>
-    <main id="result" class="detail-pane"></main>
+  <!-- 主区:左花名册 + 右档案 -->
+  <div id="layout">
+    <aside id="rail">
+      <input id="search" type="text" placeholder="筛选花名册…" autocomplete="off" />
+      <main id="list"></main>
+    </aside>
+    <main id="result"></main>
   </div>
 
   <script src="app.js"></script>

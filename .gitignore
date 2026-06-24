@@ -3,3 +3,10 @@ data/
 samples/
 __pycache__/
 *.log
+
+# 打包产物（体积大、可重新生成，用 Release 发布 exe，不进仓库）
+build/
+dist/
+
+# 调试用的临时截图
+_*.png

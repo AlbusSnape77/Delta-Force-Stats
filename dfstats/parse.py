@@ -98,8 +98,11 @@ def is_number_token(s):
 
 def parse_radar(tokens, W, H):
     """Return {战斗,生存,合作,搜索,财富} ints. 战斗 has no text label (top vertex),
-    so it is taken as the top-most numeric value in the radar region."""
-    x_min, y_min, y_max = 0.72 * W, 0.27 * H, 0.55 * H
+    so it is taken as the top-most numeric value in the radar region.
+
+    x_min must clear the pentagon's LEFT vertex (财富): measured live its value
+    sits at x≈0.711, so the old 0.72 cut silently dropped 财富 every time."""
+    x_min, y_min, y_max = 0.66 * W, 0.27 * H, 0.55 * H
     vals = [
         t for t in tokens
         if cx(t) > x_min and y_min < cy(t) < y_max and as_int(t["text"]) is not None
@@ -133,6 +136,21 @@ def parse_radar(tokens, W, H):
 
 # ---- overview / ranked -----------------------------------------------------
 
+# All ranked tiers, not just 三角洲巅峰. Sub-tier numerals come from OCR either
+# as Unicode Ⅰ-Ⅴ (live frames give 铂金Ⅱ = U+2161) or ASCII I/V runs; the ranked
+# tab sometimes drops the numeral entirely (token is just 铂金), so it's optional.
+# 白金 is RapidOCR's frequent misread of 铂金 and is normalised back to it.
+_RANK_RE = re.compile(r"(?:三角洲巅峰|黑鹰|钻石|铂金|白金|黄金|白银|青铜)\s*[ⅠⅡⅢⅣⅤIV]{0,4}")
+_STAR_RE = re.compile(r"[★☆]\s*(\d+)")
+
+
+def find_rank(tokens):
+    """First token containing a ranked-tier name (三角洲巅峰 / 铂金Ⅱ / 黄金IV…)."""
+    for t in tokens:
+        if _RANK_RE.search(t.get("text", "")):
+            return t
+    return None
+
 
 def parse_overview(tokens, W, H):
     """Parse 数据总览 or 排位赛 (identical layout). Returns a dict of fields.
@@ -142,11 +160,20 @@ def parse_overview(tokens, W, H):
     season = find_label(tokens, "S9", exact=False)
     out["season"] = txt(season)
 
-    rank_name = find_label(tokens, "三角洲", exact=False)
-    out["rank_name"] = txt(rank_name)
-    if rank_name:
-        out["rank_star"] = as_int(txt(value_right(tokens, rank_name, W, H)))
-        out["rank_score"] = as_int(txt(value_below(tokens, rank_name, W, H)))
+    rank_tok = find_rank(tokens)
+    out["rank_name"] = out["rank_star"] = out["rank_score"] = None
+    if rank_tok:
+        out["rank_name"] = _RANK_RE.search(rank_tok["text"]).group(0).strip().replace("白金", "铂金")
+        # ★N is normally its own token to the right, but OCR sometimes merges it
+        # into the rank-name token — check the same token first.
+        star = _STAR_RE.search(rank_tok["text"])
+        out["rank_star"] = int(star.group(1)) if star else as_int(txt(value_right(tokens, rank_tok, W, H)))
+        out["rank_score"] = as_int(txt(value_below(tokens, rank_tok, W, H)))
+        # value_below can grab the ★N star token instead of the real score
+        # (seen live: ranked 段位分 = 12 == rank_star) — a real score is ≥3 digits
+        if out["rank_score"] is not None and (
+                out["rank_score"] == out["rank_star"] or out["rank_score"] < 100):
+            out["rank_score"] = None
 
     out["matches"] = as_int(txt(value_below(tokens, find_label(tokens, "战局数"), W, H)))
     out["play_hours"] = txt(value_below(tokens, find_label(tokens, "游戏时长"), W, H))
@@ -155,6 +182,19 @@ def parse_overview(tokens, W, H):
 
     out["profit_ratio"] = txt(value_below(tokens, find_label(tokens, "赚损比"), W, H))
     out["escape_rate"] = txt(value_below(tokens, find_label(tokens, "撤离率"), W, H))
+    # The full-frame detector sometimes misses the value under a label entirely
+    # (seen live: 排位赛 赚损比 -> nothing). When the label exists but its value
+    # didn't, hand the caller a crop box right under the label so it can run
+    # recognition-only OCR there (same trick as the KD cell / kill counts).
+    out["_value_boxes"] = {}
+    for key, lab_txt in (("profit_ratio", "赚损比"), ("escape_rate", "撤离率")):
+        if out.get(key) is None:
+            lab = find_label(tokens, lab_txt)
+            if lab:
+                out["_value_boxes"][key] = [
+                    int(lab["x"] - 0.01 * W), int(lab["y2"] + 2),
+                    int(lab["x2"] + 0.05 * W), int(lab["y2"] + 0.05 * H),
+                ]
 
     kd_label = find_label(tokens, "战损比")
     kd_val = value_below(tokens, kd_label, W, H)
@@ -203,12 +243,16 @@ def parse_recent(tokens, W, H):
         # map + time (left, contains a date/time)
         mt = next((t for t in row if re.search(r"\d{1,2}:\d{2}", t["text"])), None)
         info["map_time"] = txt(mt)
-        # 哈夫币: the large comma number near the middle
-        hafu = next((t for t in row if re.match(r"^[\d.,]{4,}$", t["text"]) and 0.35 * W < cx(t) < 0.6 * W), None)
+        # 哈夫币: the large comma number near the middle (live-measured cx≈0.346,
+        # so the band starts at 0.30 — the old 0.35 cut sat right on the edge)
+        hafu = next((t for t in row if re.match(r"^[\d.,]{4,}$", t["text"]) and 0.30 * W < cx(t) < 0.6 * W), None)
         info["hafu"] = txt(hafu)
         # rank change: right side token containing parentheses like 8130(-18)
         rc = next((t for t in row if "(" in t["text"] or ")" in t["text"]), None)
         info["rank_change"] = txt(rc)
+        # kills: a lone small digit next to its icon (x≈0.40) that full-frame OCR
+        # usually misses — keep the row's y so lookup can re-crop and recognise it.
+        info["row_y"] = int(cy(a))
         matches.append(info)
     return {"hidden": len(matches) == 0, "matches": matches}
 

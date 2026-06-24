@@ -87,6 +87,39 @@ if "recent" in roles:
         check("recent[0].map_time has 22:14", m0["map_time"] and "22:14" in m0["map_time"], m0["map_time"])
         check("recent[0].rank_change has (-18)", m0["rank_change"] and "-18" in m0["rank_change"], m0["rank_change"])
 
+# --- rank tiers (offline token patterns) ---
+# Geometry measured from live 2560x1440 captures (data/uploads/auto/1781233620_*):
+# rank-name token at (510,700)-(581,729), ★N right of it, score below it.
+def rank_tokens(name_text, star_text):
+    toks = [
+        {"text": name_text, "x": 510, "y": 700, "x2": 581, "y2": 729, "score": 0.6},
+        {"text": "3239", "x": 554, "y": 746, "x2": 615, "y2": 771, "score": 0.8},
+    ]
+    if star_text:
+        toks.append({"text": star_text, "x": 598, "y": 700, "x2": 659, "y2": 728, "score": 0.5})
+    return toks
+
+
+RANK_CASES = [
+    # (name token as OCR'd, star token, expected rank_name, expected star)
+    ("三角洲巅峰", "★22", "三角洲巅峰", 22),   # top tier: no numeral
+    ("黑鹰Ⅴ",     "★1",  "黑鹰Ⅴ",     1),
+    ("钻石Ⅲ",     "★4",  "钻石Ⅲ",     4),
+    ("铂金Ⅱ",     "★3",  "铂金Ⅱ",     3),    # live Wensent layout (unicode numeral)
+    ("铂金",       "★3",  "铂金",       3),    # ranked tab drops the numeral
+    ("白金Ⅱ",     "★3",  "铂金Ⅱ",     3),    # OCR misread 铂->白, normalised
+    ("黄金IV",     "★5",  "黄金IV",     5),    # ascii numeral
+    ("白银Ⅰ",     "☆2",  "白银Ⅰ",     2),    # hollow-star misread
+    ("青铜Ⅴ",     "★1",  "青铜Ⅴ",     1),
+    ("铂金Ⅱ★3",   None,  "铂金Ⅱ",     3),    # name+star merged into one token
+]
+for name_text, star_text, want_name, want_star in RANK_CASES:
+    o = parse.parse_overview(rank_tokens(name_text, star_text), 2560, 1440)
+    label = f"rank[{name_text}]"
+    check(f"{label}.name=={want_name}", o["rank_name"] == want_name, o["rank_name"])
+    check(f"{label}.star=={want_star}", o["rank_star"] == want_star, o["rank_star"])
+    check(f"{label}.score==3239", o["rank_score"] == 3239, o["rank_score"])
+
 # --- home ---
 if "home" in roles:
     f = roles["home"]; W, H = dims(f)
